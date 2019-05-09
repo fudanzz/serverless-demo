@@ -1,22 +1,9 @@
-# serverless-plugin-aws-cn-principal
-Resolve [serverless invalid principal issue](https://github.com/serverless/serverless/issues/5365) when deploying in China region.
+# serverless sample project for China region
+Resolve serverless framework issue when deploying in China region.
 
 ## Usage
 ```bash
-$ npm i serverless-plugin-aws-cn-principal -D
-```
-```yml
-/* serverless.yml */
-# ...
-plugins:
-  - serverless-plugin-aws-cn-principal
+$ npm install
 
-provider:
-  name: aws
-  region: cn-north-1
-  endpointType: regional
-# ...
-```
-```bash
-$ serverless deploy -v
+$ sls deploy --aws-profile cn
 ```
