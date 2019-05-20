@@ -3,9 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "handler.js",
-  "dependencies": {},
+  "dependencies": {
+    "co": "^4.6.0",
+    "jimp": "^0.6.4"
+  },
   "devDependencies": {
-    "serverless-plugin-aws-cn-principal": "0.0.2"
+    "serverless-plugin-aws-cn-principal": "0.0.2",
+    "serverless-pseudo-parameters": "^2.4.0",
+    "serverless-step-functions": "^1.20.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

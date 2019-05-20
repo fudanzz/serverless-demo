@@ -9,23 +9,118 @@ service: serverless-hello-world
 
 plugins:
   - serverless-plugin-aws-cn-principal
+  - serverless-step-functions
+  - serverless-pseudo-parameters
+
 
 # The `provider` block defines where your service will be deployed
 provider:
   name: aws
-  runtime: nodejs6.10
+  runtime: nodejs8.10
   region: cn-north-1
   endpointType: regional
+  profile: cn
 
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "s3:ListBucket"
+        - "s3:GetObject"
+        - "s3:PutObject"
+      Resource: "arn:aws-cn:s3:::demo-test-fudanzz/*"
+    - Effect: "Allow"
+      Action:
+        - "states:*"
+      Resource: "arn:aws-cn:states:*:*:*"
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:Scan"
+        - "dynamodb:GetItem"
+        - "dynamodb:PutItem"
+        - "dynamodb:UpdateItem"
+        - "dynamodb:DeleteItem"
+        - "dynamodb:ListStreams"
+      Resource:
+        - "arn:aws-cn:dynamodb:${self:provider.region}:*:table/images-metadata"
 
 # The `functions` block defines what code to deploy
 functions:
   helloWorld:
-    handler: handler.helloWorld
+    handler: functions/helloworld.handler
     # The `events` block defines how to trigger the handler.helloWorld code
     events:
       - http:
           path: hello-world
           method: get
           cors: true
+  resizer4S3:
+    handler: functions/resize-s3.handler
+    events: 
+      - s3: 
+          bucket: demo-test-fudanzz
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: test/
+            - suffix: .jpg
+
+  executeStepFunction: 
+    handler: functions/executeStepFunction.handler
+    events: 
+      - s3: 
+          bucket: demo-test-fudanzz
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: uploads/
+            - suffix: .jpg
+  resizer: 
+    handler: functions/resize-s3.handler
+
+  saveImageMetadata: 
+    handler: functions/saveImageMeta.handler
+
+  blackAndWhiteCrop: 
+    handler: functions/blackAndWhiteCrop.handler
+
+stepFunctions:
+  stateMachines:
+    imageProcessingMachine: #Name of the state machine
+      definition:
+        Comment: "Image processing state machine"
+        StartAt: Parallel # First state
+        States:
+          Parallel: # Name of the first state
+            Type: Parallel # Type of the state
+            Next: FinalState # Name of the next state
+            Branches: # Branches in the parallel state machine
+              - StartAt: ResizeImage
+                States:
+                  ResizeImage:
+                    Type: Task
+                    Resource: arn:aws-cn:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage}-resizer
+                    End: true
+              - StartAt: SaveImageMetadata
+                States:
+                  SaveImageMetadata:
+                    Type: Task
+                    Resource: arn:aws-cn:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage}-saveImageMetadata
+                    End: true            
+          FinalState: # Final state name
+            Type: Pass
+            End: true
+  
+resources:
+  Resources:
+    ImagesTable:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        TableName: images-metadata
+        AttributeDefinitions:
+        - AttributeName: "imageId"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "imageId"
+          KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
 
